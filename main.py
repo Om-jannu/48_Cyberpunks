@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Ui/protoV2.ui'
+# Form implementation generated from reading ui file 'for_test.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -17,9 +17,30 @@ import subprocess
 from PyQt5 import QtCore, QtGui,QtWidgets
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIntValidator
+from PyQt5.QtCore import Qt
 import nmap
- 
-scanner = nmap.PortScanner()
+
+
+class TableModel(QtCore.QAbstractTableModel):
+    def __init__(self, data):
+        super(TableModel, self).__init__()
+        self._data = data
+
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            # See below for the nested-list data structure.
+            # .row() indexes into the outer list,
+            # .column() indexes into the sub-list
+            return self._data[index.row()][index.column()]
+
+    def rowCount(self, index):
+        # The length of the outer list.
+        return len(self._data)
+
+    def columnCount(self, index):
+        # The following takes the first sub-list, and returns
+        # the length (only works if all rows are an equal length)
+        return len(self._data[0])
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -179,9 +200,9 @@ class Ui_MainWindow(object):
         self.frame_11.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_11.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_11.setObjectName("frame_11")
-        self.tableView = QtWidgets.QTableView(self.frame_11)
-        self.tableView.setGeometry(QtCore.QRect(15, 11, 571, 391))
-        self.tableView.setObjectName("tableView")
+        self.fullScanOpTable = QtWidgets.QTableView(self.frame_11)
+        self.fullScanOpTable.setGeometry(QtCore.QRect(15, 11, 571, 391))
+        self.fullScanOpTable.setObjectName("fullScanOpTable")
         self.label_9 = QtWidgets.QLabel(self.frame_6)
         self.label_9.setGeometry(QtCore.QRect(10, 40, 151, 21))
         self.label_9.setObjectName("label_9")
@@ -347,8 +368,7 @@ class Ui_MainWindow(object):
         self.tabWidget_2.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        # my functions 
-
+        #--------------------------- my function start ----------------------------
         self.ind_portinput.setText("0")
         self.ind_portinput_2.setText("65535")
         self.indScanOpArea.setReadOnly(True)
@@ -361,22 +381,26 @@ class Ui_MainWindow(object):
         self.services.clicked.connect(lambda: self.stackedWidget.setCurrentWidget(self.Services))
         self.ind_ScanButton.clicked.connect(self.indPortScan)
         self.full_ScanButton.clicked.connect(self.fullPortScan)
-        # self.listServicesRefresh.clicked.connect(self.servicesList)
-
-
+        self.listServicesRefresh.clicked.connect(self.servicesList)
+        # self.ind_ScanButton.setDisabled(True)
+    
     def fullPortScan(self):
-            fullTargetInp = self.full_targetinput_1.text()
-            subnetMaskLen = self.full_subnetLen.text()
-            print(fullTargetInp+subnetMaskLen)
-            scanner.scan(hosts=fullTargetInp+"/"+subnetMaskLen, arguments='-n -sP -PE -PA21,23,80,3389')
-            hosts_list = [{"ip_add":x,"status":scanner[x]['status']['state']} for x in scanner.all_hosts()]
-            print(hosts_list)
+        scanner = nmap.PortScanner()
+        fullTargetInp = self.full_targetinput_1.text()
+        subnetMaskLen = self.full_subnetLen.text()
+        print(fullTargetInp+"/"+subnetMaskLen)
+        scanner.scan(hosts=fullTargetInp+"/"+subnetMaskLen, arguments='-n -sP -PE -PA21,23,80,3389')
+        hosts_list = [[x,scanner[x]['status']['state']] for x in scanner.all_hosts()]
+        print(hosts_list)
+        self.model = TableModel(hosts_list)
+        self.fullScanOpTable.setModel(self.model)
 
     def indPortScan(self):
         indPortInp1 = int(self.ind_portinput.text())
         indPortInp2 = int(self.ind_portinput_2.text())
         indtargetIp = self.ind_targetinput.text()
         indTypeScan = self.ind_typeOfPortScan.currentIndex()
+
         # t = threading.Thread(target=self.intenseScan)
         # QApplication.processEvents()
 
@@ -408,7 +432,7 @@ class Ui_MainWindow(object):
 
             elif indTypeScan == 1:
                 indPingPortScanOp = pingScan(indtargetIp)
-                displayIndPortOp(indPingPortScanOp)
+                displayIndPortOp(indRegPortScanOp)
 
             elif indTypeScan == 2:
                 indIntPortScanOp = intenseScan(indtargetIp)
@@ -422,6 +446,37 @@ class Ui_MainWindow(object):
                 indIntTCPPortScanOp = intenseTCPScan(indtargetIp,indPortInp1,indPortInp2)
                 displayIndPortOp(indIntTCPPortScanOp)
 
+        
+    def servicesList(self):
+        processIdarr = []
+        processNamearr = []
+        processStatusarr = []
+        for process in psutil.process_iter ():
+            ProcessId = str(process.pid)
+            processIdarr.append(ProcessId)
+            # print(ProcessId)
+            Name = process.name()
+            processNamearr.append(Name)
+            Status = process.status()  
+            processStatusarr.append(Status)
+
+
+        serviceList = []
+        for i in range(len(processStatusarr)):
+            eachEle = {"pId":processIdarr[i],"pName":processNamearr[i],"pStatus":processStatusarr[i]}
+            serviceList.append(eachEle)
+            i=i+1
+        print(serviceList)
+        # >> [{'pId': '0', 'pName': 'System Idle Process', 'pStatus': 'running'}, {'pId': '36520', 'pName': 'QcShm.exe', 'pStatus': 'running'}]
+        row=0
+        self.listServicesTab.setRowCount(len(serviceList))
+        for service in serviceList: 
+            self.listServicesTab.setItem(row , 0, QtWidgets.QTableWidgetItem(service["pId"]))
+            self.listServicesTab.setItem(row , 1, QtWidgets.QTableWidgetItem(service["pName"]))
+            self.listServicesTab.setItem(row , 2, QtWidgets.QTableWidgetItem(service["pStatus"]))
+            row=row+1
+
+        #--------------------------- my function ends -----------------------------
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
