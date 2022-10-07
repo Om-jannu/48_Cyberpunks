@@ -382,6 +382,8 @@ class Ui_MainWindow(object):
         self.ind_ScanButton.clicked.connect(self.indPortScan)
         self.full_ScanButton.clicked.connect(self.fullPortScan)
         self.listServicesRefresh.clicked.connect(self.servicesList)
+        self.getServicesRefreshBtn.clicked.connect(self.servicesEditList)
+
         # self.ind_ScanButton.setDisabled(True)
     
     def fullPortScan(self):
@@ -475,7 +477,36 @@ class Ui_MainWindow(object):
             self.listServicesTab.setItem(row , 1, QtWidgets.QTableWidgetItem(service["pName"]))
             self.listServicesTab.setItem(row , 2, QtWidgets.QTableWidgetItem(service["pStatus"]))
             row=row+1
+        
+    def servicesEditList(self):
+        processIdarr = []
+        processNamearr = []
+        processUsernamearr = []
+        for process in psutil.process_iter ():
+            ProcessId = str(process.pid)
+            processIdarr.append(ProcessId)
+            # print(ProcessId)
+            Name = process.name()
+            processNamearr.append(Name)
+            Username = process.username()  
+            processUsernamearr.append(Username)
 
+
+        serviceList = []
+        for i in range(len(processUsernamearr)):
+            eachEle = {"pId":processIdarr[i],"pName":processNamearr[i],"pUsername":processUsernamearr[i]}
+            serviceList.append(eachEle)
+            i=i+1
+        print(serviceList)
+        # >> [{'pId': '0', 'pName': 'System Idle Process', 'pStatus': 'running'}, {'pId': '36520', 'pName': 'QcShm.exe', 'pStatus': 'running'}]
+        row=0
+        self.editServicesTab.setRowCount(len(serviceList))
+        for service in serviceList: 
+            self.editServicesTab.setItem(row , 1, QtWidgets.QTableWidgetItem(service["pId"]))
+            self.editServicesTab.setItem(row , 2, QtWidgets.QTableWidgetItem(service["pName"]))
+            self.editServicesTab.setItem(row , 3, QtWidgets.QTableWidgetItem(service["pUsername"]))
+            # self.editServicesTab.setItems()
+            row=row+1
         #--------------------------- my function ends -----------------------------
 
     def retranslateUi(self, MainWindow):
