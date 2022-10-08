@@ -174,7 +174,7 @@
            </rect>
           </property>
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="individualScanTab">
            <property name="toolTip">
@@ -198,16 +198,6 @@
             <property name="frameShadow">
              <enum>QFrame::Raised</enum>
             </property>
-            <widget class="QLineEdit" name="ind_targetinput">
-             <property name="geometry">
-              <rect>
-               <x>120</x>
-               <y>0</y>
-               <width>231</width>
-               <height>20</height>
-              </rect>
-             </property>
-            </widget>
             <widget class="QLabel" name="Targetlabel">
              <property name="geometry">
               <rect>
@@ -325,9 +315,9 @@
              <widget class="QTextEdit" name="indScanOpArea">
               <property name="geometry">
                <rect>
-                <x>10</x>
+                <x>0</x>
                 <y>10</y>
-                <width>571</width>
+                <width>581</width>
                 <height>361</height>
                </rect>
               </property>
@@ -396,6 +386,29 @@
                <string>Intensive | TCP Scan</string>
               </property>
              </item>
+            </widget>
+            <widget class="QComboBox" name="indScanIpDD">
+             <property name="geometry">
+              <rect>
+               <x>120</x>
+               <y>0</y>
+               <width>151</width>
+               <height>22</height>
+              </rect>
+             </property>
+            </widget>
+            <widget class="QPushButton" name="indScanIpRefreshBtn">
+             <property name="geometry">
+              <rect>
+               <x>300</x>
+               <y>0</y>
+               <width>151</width>
+               <height>28</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>Refresh list</string>
+             </property>
             </widget>
            </widget>
           </widget>
@@ -489,15 +502,28 @@
              <property name="frameShadow">
               <enum>QFrame::Raised</enum>
              </property>
-             <widget class="QTableView" name="fullScanOpTable">
+             <widget class="QTableWidget" name="fullScanOpTable">
               <property name="geometry">
                <rect>
                 <x>15</x>
-                <y>11</y>
+                <y>1</y>
                 <width>571</width>
-                <height>391</height>
+                <height>401</height>
                </rect>
               </property>
+              <property name="editTriggers">
+               <set>QAbstractItemView::NoEditTriggers</set>
+              </property>
+              <column>
+               <property name="text">
+                <string>Ip Address</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Status</string>
+               </property>
+              </column>
              </widget>
             </widget>
             <widget class="QLabel" name="label_9">
@@ -567,7 +593,7 @@
            </rect>
           </property>
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="tab">
            <attribute name="title">
@@ -669,11 +695,6 @@
                <height>441</height>
               </rect>
              </property>
-             <column>
-              <property name="text">
-               <string/>
-              </property>
-             </column>
              <column>
               <property name="text">
                <string>PID</string>
