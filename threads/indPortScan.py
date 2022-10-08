@@ -1,4 +1,5 @@
 from PyQt5.QtCore import *
+import schedule, time
 import subprocess
 from multipledispatch import dispatch
 
