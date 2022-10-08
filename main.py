@@ -13,9 +13,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import subprocess
 from PyQt5.QtWidgets import QAbstractItemView
 from PyQt5.QtGui import QIntValidator
+from PyQt5.QtCore import *
 import nmap
 from netaddr import IPAddress
 import ipcalc
+from threads import indPortScan
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -425,55 +427,92 @@ class Ui_MainWindow(object):
         indPortInp2 = int(self.ind_portinput_2.text())
         indTypeScan = self.ind_typeOfPortScan.currentIndex()
         indScanIpDdCurrentText = self.indScanIpDD.currentText()
-        # t = threading.Thread(target=self.intenseScan)
-        # QApplication.processEvents()
-
-        def regularScan(target):
-            regScan = subprocess.run(['nmap',target],capture_output=True,text=True)
-            return regScan.stdout
-        def pingScan(target):
-            regScan = subprocess.run(['nmap','-sn',target],capture_output=True,text=True)
-            return regScan.stdout
-        def intenseScan(target):
-            regScan = subprocess.run(['nmap','-T4','-A','-v',target],capture_output=True,text=True)
-            return regScan.stdout
-        def intenseUDPScan(target,port1,port2):
-            regScan = subprocess.run(['nmap','-p',port1+'-'+port2,'-sS','-sU','-T4',target],capture_output=True,text=True)
-            return regScan.stdout
-        def intenseTCPScan(target,port1,port2):
-            regScan = subprocess.run(['nmap','-p',port1+'-'+port2,target],capture_output=True,text=True)
-            return regScan.stdout
-            
-        def displayIndPortOp(string):
-            self.indScanOpArea.setText(string)
 
         if indScanIpDdCurrentText=="" or indPortInp1=="" or indPortInp2=="":
             self.indScanOpArea.setText("Enter All Fields")
         else:
-            if indTypeScan == 0:
-                self.Outputlabel.setText("running Regular scan")
-                indRegPortScanOp = regularScan(indScanIpDdCurrentText)
-                displayIndPortOp(indRegPortScanOp)
+            if indTypeScan == 0 or indTypeScan == 1 or indTypeScan == 2:
+                self.thread = QThread()
+                self.worker = indPortScan.Worker(indScanIpDdCurrentText, indTypeScan)
+                self.worker.moveToThread(self.thread)
+                self.thread.started.connect(self.worker.run)
+                self.worker.finished.connect(self.thread.quit)
+                self.worker.finished.connect(self.worker.deleteLater)
+                self.thread.finished.connect(self.thread.deleteLater)
 
-            elif indTypeScan == 1:
-                self.Outputlabel.setText("running ping scan")
-                indPingPortScanOp = pingScan(indScanIpDdCurrentText)
-                displayIndPortOp(indPingPortScanOp)
+                self.thread.start()
 
-            elif indTypeScan == 2:
-                self.Outputlabel.setText("running intense scan")
-                indIntPortScanOp = intenseScan(indScanIpDdCurrentText)
-                displayIndPortOp(indIntPortScanOp)
+                self.thread.finished.connect(
+                    lambda: self.indScanOpArea.setText(self.worker.result)
+                )
+            elif indTypeScan == 3 or indTypeScan == 4:
+                self.thread = QThread()
+                self.worker = indPortScan.Worker(indScanIpDdCurrentText, indPortInp1, indPortInp2, indTypeScan)
+                self.worker.moveToThread(self.thread)
+                self.thread.started.connect(self.worker.run)
+                self.worker.finished.connect(self.thread.quit)
+                self.worker.finished.connect(self.worker.deleteLater)
+                self.thread.finished.connect(self.thread.deleteLater)
 
-            elif indTypeScan == 3:
-                self.Outputlabel.setText("running intense scan | UDP")
-                indIntUDPPortScanOp = intenseUDPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
-                displayIndPortOp(indIntUDPPortScanOp)
+                self.thread.start()
 
-            elif indTypeScan == 4:
-                self.Outputlabel.setText("running Regular scan | TCP")
-                indIntTCPPortScanOp = intenseTCPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
-                displayIndPortOp(indIntTCPPortScanOp)
+                self.thread.finished.connect(
+                    lambda: self.indScanOpArea.setText(self.worker.result)
+                )
+    # def indPortScan(self):
+    #     indPortInp1 = int(self.ind_portinput.text())
+    #     indPortInp2 = int(self.ind_portinput_2.text())
+    #     indTypeScan = self.ind_typeOfPortScan.currentIndex()
+    #     indScanIpDdCurrentText = self.indScanIpDD.currentText()
+    #     # t = threading.Thread(target=self.intenseScan)
+    #     # QApplication.processEvents()
+
+    #     def regularScan(target):
+    #         regScan = subprocess.run(['nmap',target],capture_output=True,text=True)
+    #         return regScan.stdout
+    #     def pingScan(target):
+    #         regScan = subprocess.run(['nmap','-sn',target],capture_output=True,text=True)
+    #         return regScan.stdout
+    #     def intenseScan(target):
+    #         regScan = subprocess.run(['nmap','-T4','-A','-v',target],capture_output=True,text=True)
+    #         return regScan.stdout
+    #     def intenseUDPScan(target,port1,port2):
+    #         regScan = subprocess.run(['nmap','-p',port1+'-'+port2,'-sS','-sU','-T4',target],capture_output=True,text=True)
+    #         return regScan.stdout
+    #     def intenseTCPScan(target,port1,port2):
+    #         regScan = subprocess.run(['nmap','-p',port1+'-'+port2,target],capture_output=True,text=True)
+    #         return regScan.stdout
+            
+    #     def displayIndPortOp(string):
+    #         self.indScanOpArea.setText(string)
+
+    #     if indScanIpDdCurrentText=="" or indPortInp1=="" or indPortInp2=="":
+    #         self.indScanOpArea.setText("Enter All Fields")
+    #     else:
+    #         if indTypeScan == 0:
+    #             self.Outputlabel.setText("running Regular scan")
+    #             indRegPortScanOp = regularScan(indScanIpDdCurrentText)
+    #             displayIndPortOp(indRegPortScanOp)
+
+    #         elif indTypeScan == 1:
+    #             self.Outputlabel.setText("running ping scan")
+    #             indPingPortScanOp = pingScan(indScanIpDdCurrentText)
+    #             displayIndPortOp(indPingPortScanOp)
+
+    #         elif indTypeScan == 2:
+    #             self.Outputlabel.setText("running intense scan")
+    #             indIntPortScanOp = intenseScan(indScanIpDdCurrentText)
+    #             displayIndPortOp(indIntPortScanOp)
+
+    #         elif indTypeScan == 3:
+    #             self.Outputlabel.setText("running intense scan | UDP")
+    #             indIntUDPPortScanOp = intenseUDPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
+    #             displayIndPortOp(indIntUDPPortScanOp)
+
+    #         elif indTypeScan == 4:
+    #             self.Outputlabel.setText("running Regular scan | TCP")
+    #             indIntTCPPortScanOp = intenseTCPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
+    #             displayIndPortOp(indIntTCPPortScanOp)
 
         
 
