@@ -1,5 +1,6 @@
 from PyQt5.QtCore import *
 import subprocess
+import schedule, time
 
 class ScheduleWorker(QObject):
     target = ""
@@ -14,11 +15,16 @@ class ScheduleWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
 
+
+
     def run(self):
         if self.option == 0:
             # Regular scan
-            regScan = subprocess.run(['nmap', self.target],capture_output=True,text=True)
-            self.result = regScan.stdout
+            def a():
+                regScan = subprocess.run(['nmap', self.target],capture_output=True,text=True)
+                self.result = regScan.stdout
+                print(self.result)
+            schedule.every(30).seconds.do(a)
             self.finished.emit()
         elif self.option == 1:
             # Ping scan
@@ -41,3 +47,6 @@ class ScheduleWorker(QObject):
             self.result = regScan.stdout
             self.finished.emit()
             
+        while True:
+            schedule.run_pending()
+            time.sleep(1)

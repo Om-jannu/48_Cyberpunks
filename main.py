@@ -10,6 +10,7 @@
 import socket
 import os
 import subprocess, psutil
+from numpy import sinc
 from PyQt5 import QtCore, QtGui, QtWidgets
 import subprocess
 from PyQt5.QtWidgets import QAbstractItemView,QApplication
@@ -18,7 +19,8 @@ from PyQt5.QtCore import *
 import nmap
 from netaddr import IPAddress
 import ipcalc
-from threads import indPortScan
+from threads import indPortScan, indScheduleScan
+import schedule, time
 import signal
 
 class Ui_MainWindow(object):
@@ -321,12 +323,12 @@ class Ui_MainWindow(object):
         self.singSchScanTimeIntervalDD.addItem("")
         self.singSchScanTimeIntervalDD.addItem("")
         self.singSchScanTimeIntervalDD.addItem("")
+        self.singSchScanTimeIntervalDD.addItem("")
+        self.singSchScanTimeIntervalDD.addItem("")
+        self.singSchScanTimeIntervalDD.addItem("")
         self.singSchScanTypeScanDD = QtWidgets.QComboBox(self.tab_3)
         self.singSchScanTypeScanDD.setGeometry(QtCore.QRect(150, 100, 361, 31))
         self.singSchScanTypeScanDD.setObjectName("singSchScanTypeScanDD")
-        self.singSchScanTypeScanDD.addItem("")
-        self.singSchScanTypeScanDD.addItem("")
-        self.singSchScanTypeScanDD.addItem("")
         self.singSchScanTypeScanDD.addItem("")
         self.singSchScanTypeScanDD.addItem("")
         self.singSchScanTypeScanDD.addItem("")
@@ -369,6 +371,7 @@ class Ui_MainWindow(object):
         self.services.clicked.connect(lambda: self.stackedWidget.setCurrentWidget(self.Services))
         self.ind_ScanButton.clicked.connect(self.indPortScan)
         self.full_ScanButton.clicked.connect(self.fullPortScan)
+        self.SingSchScanBtn.clicked.connect(self.singScheduleScan)
         self.listServicesRefresh.clicked.connect(self.servicesList)
         self.getServicesRefreshBtn.clicked.connect(self.servicesEditList)
         self.ind_typeOfPortScan.currentIndexChanged.connect(self.changePortVisibility)
@@ -417,7 +420,7 @@ class Ui_MainWindow(object):
         subnetMaskLen = self.full_subnetLen.text()
         nm.scan(hosts=fullTargetInp+"/"+subnetMaskLen, arguments='-sn')
         hosts_list = [{"ip_addr":x,"status":nm[x]['status']['state']} for x in nm.all_hosts()]
-        print(hosts_list)
+        # print(hosts_list)
         self.fullScanOpTable.setRowCount(len(hosts_list))
         row = 0
         for host in hosts_list:
@@ -483,62 +486,68 @@ class Ui_MainWindow(object):
                 self.thread.finished.connect(
                     lambda: self.indScanOpArea.setText(self.worker.result)
                 )
-    # def indPortScan(self):
-    #     indPortInp1 = int(self.ind_portinput.text())
-    #     indPortInp2 = int(self.ind_portinput_2.text())
-    #     indTypeScan = self.ind_typeOfPortScan.currentIndex()
-    #     indScanIpDdCurrentText = self.indScanIpDD.currentText()
-    #     # t = threading.Thread(target=self.intenseScan)
-    #     # QApplication.processEvents()
-
-    #     def regularScan(target):
-    #         regScan = subprocess.run(['nmap',target],capture_output=True,text=True)
-    #         return regScan.stdout
-    #     def pingScan(target):
-    #         regScan = subprocess.run(['nmap','-sn',target],capture_output=True,text=True)
-    #         return regScan.stdout
-    #     def intenseScan(target):
-    #         regScan = subprocess.run(['nmap','-T4','-A','-v',target],capture_output=True,text=True)
-    #         return regScan.stdout
-    #     def intenseUDPScan(target,port1,port2):
-    #         regScan = subprocess.run(['nmap','-p',port1+'-'+port2,'-sS','-sU','-T4',target],capture_output=True,text=True)
-    #         return regScan.stdout
-    #     def intenseTCPScan(target,port1,port2):
-    #         regScan = subprocess.run(['nmap','-p',port1+'-'+port2,target],capture_output=True,text=True)
-    #         return regScan.stdout
-            
-    #     def displayIndPortOp(string):
-    #         self.indScanOpArea.setText(string)
-
-    #     if indScanIpDdCurrentText=="" or indPortInp1=="" or indPortInp2=="":
-    #         self.indScanOpArea.setText("Enter All Fields")
-    #     else:
-    #         if indTypeScan == 0:
-    #             self.Outputlabel.setText("running Regular scan")
-    #             indRegPortScanOp = regularScan(indScanIpDdCurrentText)
-    #             displayIndPortOp(indRegPortScanOp)
-
-    #         elif indTypeScan == 1:
-    #             self.Outputlabel.setText("running ping scan")
-    #             indPingPortScanOp = pingScan(indScanIpDdCurrentText)
-    #             displayIndPortOp(indPingPortScanOp)
-
-    #         elif indTypeScan == 2:
-    #             self.Outputlabel.setText("running intense scan")
-    #             indIntPortScanOp = intenseScan(indScanIpDdCurrentText)
-    #             displayIndPortOp(indIntPortScanOp)
-
-    #         elif indTypeScan == 3:
-    #             self.Outputlabel.setText("running intense scan | UDP")
-    #             indIntUDPPortScanOp = intenseUDPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
-    #             displayIndPortOp(indIntUDPPortScanOp)
-
-    #         elif indTypeScan == 4:
-    #             self.Outputlabel.setText("running Regular scan | TCP")
-    #             indIntTCPPortScanOp = intenseTCPScan(indScanIpDdCurrentText,indPortInp1,indPortInp2)
-    #             displayIndPortOp(indIntTCPPortScanOp)
-
         
+    def scheduleThread(self):
+        print("started scheduling")
+        singTargetIp = self.singSchScanTarget.toPlainText()
+        singSchTypeScan = self.singSchScanTypeScanDD.currentIndex()
+
+        self.thread2 = QThread()
+        self.scheduleWorker = indScheduleScan.ScheduleWorker(singTargetIp, singSchTypeScan)
+        self.scheduleWorker.moveToThread(self.thread2)
+        self.thread2.started.connect(self.scheduleWorker.run)
+        self.scheduleWorker.finished.connect(self.thread2.quit)
+        self.scheduleWorker.finished.connect(self.scheduleWorker.deleteLater)
+        self.thread2.finished.connect(self.thread2.deleteLater)
+
+        self.thread2.start()
+
+        self.thread2.finished.connect(
+            lambda: self.SingSchScanOp.append(self.scheduleWorker.result)
+        )
+
+    def singScheduleScan(self):
+        singTargetIp = self.singSchScanTarget.toPlainText()
+        singSchTimeInterval = self.singSchScanTimeIntervalDD.currentIndex()
+        singSchTypeScan = self.singSchScanTypeScanDD.currentIndex()
+
+        if singTargetIp =="":
+            self.SingSchScanOp.setText("Please Enter a Target IP")
+            # self.SingSchScanOp.setText("empty")
+        else:
+            if singSchTimeInterval == 0:
+                print("0")
+                self.thread2 = QThread()
+                self.scheduleWorker = indScheduleScan.ScheduleWorker(singTargetIp, singSchTypeScan)
+                self.scheduleWorker.moveToThread(self.thread2)
+                self.thread2.started.connect(self.scheduleWorker.run)
+                self.scheduleWorker.finished.connect(self.thread2.quit)
+                self.scheduleWorker.finished.connect(self.scheduleWorker.deleteLater)
+                self.thread2.finished.connect(self.thread2.deleteLater)
+
+                self.thread2.start()
+
+                self.thread2.finished.connect(
+                    lambda: self.SingSchScanOp.append(self.scheduleWorker.result)
+                )
+                # schedule.every(15).seconds.do(self.scheduleThread)
+            elif singSchTimeInterval == 1:
+                schedule.every(60).minutes.do(self.scheduleThread)
+            elif singSchTimeInterval == 2:
+                schedule.every(3).hours.do(self.scheduleThread)
+            elif singSchTimeInterval == 3:
+                schedule.every(6).hours.do(self.scheduleThread)
+            elif singSchTimeInterval == 4:
+                schedule.every(12).hours.do(self.scheduleThread)
+            elif singSchTimeInterval == 5:
+                schedule.every(24).hours.do(self.scheduleThread)
+
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+            # self.SingSchScanOp.setText(singTargetIp)
+            # print(singTargetIp)
 
         
     def servicesList(self):
@@ -550,7 +559,7 @@ class Ui_MainWindow(object):
             processIdarr.append(ProcessId)
             Name = process.name()
             processNamearr.append(Name)
-            Status = process.status()  
+            Status = process.status()
             processStatusarr.append(Status)
 
         serviceList = []
@@ -590,9 +599,9 @@ class Ui_MainWindow(object):
             if localIpAddress.encode() in line:
                 break
         mask = proc.stdout.readline().rstrip().split(b':')[-1].replace(b' ',b'').decode()
-        print(mask)
+        # print(mask)
         masklen = IPAddress(mask).netmask_bits()
-        print(masklen)
+        # print(masklen)
 
         addr = ipcalc.IP(localIpAddress, mask)
         network_with_cidr = str(addr.guess_network())
@@ -601,7 +610,7 @@ class Ui_MainWindow(object):
         scanner = nmap.PortScanner()
         scanner.scan(hosts=network_with_cidr,arguments='-sn')
         host_list=[x for x in scanner.all_hosts()]
-        print(host_list)
+        # print(host_list)
         self.indScanIpDD.addItems(host_list)
 
     def servicesEditList(self):
@@ -626,7 +635,7 @@ class Ui_MainWindow(object):
             eachEle = {"pId":processIdarr[i],"pName":processNamearr[i],"pUsername":processUsernamearr[i]}
             serviceList.append(eachEle)
             i=i+1
-        print(serviceList)
+        # print(serviceList)
         # >> [{'pId': '0', 'pName': 'System Idle Process', 'pStatus': 'running'}, {'pId': '36520', 'pName': 'QcShm.exe', 'pStatus': 'running'}]
         row=0
         self.editServicesTab.setRowCount(len(serviceList))
@@ -635,7 +644,7 @@ class Ui_MainWindow(object):
             pid = service["pId"]
             pnmae = service["pName"]
             pusername = service["pUsername"]
-            print(pid)
+            # print(pid)
             btn = QtWidgets.QPushButton(table)
             btn.clicked.connect(self.killService)
             btn.setText('Kill')
@@ -650,11 +659,11 @@ class Ui_MainWindow(object):
         pid = self.editServicesTab.item(index.row(), 0).text()
         service_name = self.editServicesTab.item(index.row(), 1).text()
         # print(pid)
-        print(signal.valid_signals())
+        # print(signal.valid_signals())
         os.kill(int(pid), signal.SIGTERM)
         print("killed "+service_name)
 
-    def servicesEditList(self):
+    # def servicesEditList(self):
         processIdarr = []
         processNamearr = []
         processUsernamearr = []
@@ -673,7 +682,7 @@ class Ui_MainWindow(object):
             eachEle = {"pId":processIdarr[i],"pName":processNamearr[i],"pUsername":processUsernamearr[i]}
             serviceList.append(eachEle)
             i=i+1
-        print(serviceList)
+        # print(serviceList)
         # >> [{'pId': '0', 'pName': 'System Idle Process', 'pStatus': 'running'}, {'pId': '36520', 'pName': 'QcShm.exe', 'pStatus': 'running'}]
         row=0
         self.editServicesTab.setRowCount(len(serviceList))
@@ -706,9 +715,9 @@ class Ui_MainWindow(object):
                 if localIpAddress.encode() in line:
                     break
             mask = proc.stdout.readline().rstrip().split(b':')[-1].replace(b' ',b'').decode()
-            print(mask)
+            # print(mask)
             masklen = IPAddress(mask).netmask_bits()
-            print(masklen)
+            # print(masklen)
 
             addr = ipcalc.IP(localIpAddress, mask)
             network_with_cidr = str(addr.guess_network())
@@ -717,7 +726,7 @@ class Ui_MainWindow(object):
             scanner = nmap.PortScanner()
             scanner.scan(hosts=network_with_cidr,arguments='-sn')
             host_list=[x for x in scanner.all_hosts()]
-            print(host_list)
+            # print(host_list)
             self.indScanIpDD.addItems(host_list)
 
         #--------------------------- my function ends -----------------------------
@@ -780,17 +789,17 @@ class Ui_MainWindow(object):
         self.label_4.setText(_translate("MainWindow", "<html><head/><body><p><span style=\" font-size:9pt;\">Target :</span></p></body></html>"))
         self.label_5.setText(_translate("MainWindow", "<html><head/><body><p><span style=\" font-size:9pt;\">Time Interval :</span></p></body></html>"))
         self.SingSchScanBtn.setText(_translate("MainWindow", "Schedule"))
-        self.singSchScanTimeIntervalDD.setItemText(0, _translate("MainWindow", "1 minutes"))
+        self.singSchScanTimeIntervalDD.setItemText(0, _translate("MainWindow", "30 minutes"))
         self.singSchScanTimeIntervalDD.setItemText(1, _translate("MainWindow", "60 minutes"))
-        self.singSchScanTimeIntervalDD.setItemText(2, _translate("MainWindow", "24 hours"))
-        self.singSchScanTypeScanDD.setItemText(0, _translate("MainWindow", "Ping Scan"))
-        self.singSchScanTypeScanDD.setItemText(1, _translate("MainWindow", "Quick Scan"))
-        self.singSchScanTypeScanDD.setItemText(2, _translate("MainWindow", "Quick Scan ++"))
-        self.singSchScanTypeScanDD.setItemText(3, _translate("MainWindow", "Regular Scan"))
-        self.singSchScanTypeScanDD.setItemText(4, _translate("MainWindow", "Intensive Scan"))
-        self.singSchScanTypeScanDD.setItemText(5, _translate("MainWindow", "Intensive Scan + UDP"))
-        self.singSchScanTypeScanDD.setItemText(6, _translate("MainWindow", "Intensive Scan | All TCP Ports"))
-        self.singSchScanTypeScanDD.setItemText(7, _translate("MainWindow", "Intensive Safe Scan(No Ping)"))
+        self.singSchScanTimeIntervalDD.setItemText(2, _translate("MainWindow", "3 hours"))
+        self.singSchScanTimeIntervalDD.setItemText(3, _translate("MainWindow", "6 hours"))
+        self.singSchScanTimeIntervalDD.setItemText(4, _translate("MainWindow", "12 hours"))
+        self.singSchScanTimeIntervalDD.setItemText(5, _translate("MainWindow", "24 hours"))
+        self.singSchScanTypeScanDD.setItemText(0, _translate("MainWindow", "Regular Scan"))
+        self.singSchScanTypeScanDD.setItemText(1, _translate("MainWindow", "Ping Scan"))
+        self.singSchScanTypeScanDD.setItemText(2, _translate("MainWindow", "Intensive Scan"))
+        self.singSchScanTypeScanDD.setItemText(3, _translate("MainWindow", "Intensive | UDP Scan"))
+        self.singSchScanTypeScanDD.setItemText(4, _translate("MainWindow", "Intensive | TCP Scan"))
         self.label_6.setText(_translate("MainWindow", "<html><head/><body><p><span style=\" font-size:9pt;\">Type Of Scan :</span></p></body></html>"))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_3), _translate("MainWindow", "Single Machine"))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_4), _translate("MainWindow", "Full Network"))
